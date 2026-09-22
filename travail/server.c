@@ -37,6 +37,7 @@ void accept_client(int j, struct pollfd fds[], int sfd, int nbfds){
     fds[j].fd= new_client;
     fds[j].events= POLLIN;
     fds[j].revents= 0;
+    printf("Nombre de fd connecté : %i\n",nbfds);
 }
 
 int handle_bind(char* port) {
@@ -102,7 +103,6 @@ int main(int argc, char* argv[]) {
                 }
             }
             if ( i != 0 && (fds[i].revents == POLLIN)){
-                printf("Nombre de fd connecté : %i\n",nbfds);
                 echo_server(fds, i);
             }
         }
