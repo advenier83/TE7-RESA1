@@ -6,25 +6,37 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <poll.h>
 
 #include "common.h"
 
-void echo_server(int sockfd) {
+void echo_server(struct pollfd fds[], int i) {
 	char buff[MSG_LEN];
-	while (1) {
-		// Cleaning memory
-		memset(buff, 0, MSG_LEN);
-		// Receiving message
-		if (recv(sockfd, buff, MSG_LEN, 0) <= 0) {
-			break;
-		}
-		printf("Received: %s", buff);
-		// Sending message (ECHO)
-		if (send(sockfd, buff, strlen(buff), 0) <= 0) {
-			break;
-		}
-		printf("Message sent!\n");
-	}
+	// Cleaning memory
+	memset(buff, 0, MSG_LEN);
+	// Receiving message
+    if(recv(fds[i].fd, buff, MSG_LEN, 0) <=0 ){
+        close(fds[i].fd);
+        fds[i].fd = -1;
+        fds[i].revents = 0;
+        fds[i].events = 0;
+    }
+
+    else{
+        printf("Received: %s", buff);
+        // Sending message (ECHO)
+        send(fds[i].fd, buff, strlen(buff), 0);
+        printf("Message sent!\n");
+    }
+}
+
+void accept_client(int j, struct pollfd fds[], int sfd, int nbfds){
+    struct sockaddr_storage cli;
+    socklen_t len = sizeof(cli);
+    int new_client = accept(sfd, (struct sockaddr*) &cli, &len);
+    fds[j].fd= new_client;
+    fds[j].events= POLLIN;
+    fds[j].revents= 0;
 }
 
 int handle_bind(char* port) {
@@ -58,20 +70,43 @@ int handle_bind(char* port) {
 }
 
 int main(int argc, char* argv[]) {
-	struct sockaddr cli;
-	int sfd, connfd;
-	socklen_t len;
+
+	int sfd;
+
 	sfd = handle_bind(argv[1]);
 	if ((listen(sfd, SOMAXCONN)) != 0) {
 		perror("listen()\n");
 		exit(EXIT_FAILURE);
 	}
-	len = sizeof(cli);
-	if ((connfd = accept(sfd, (struct sockaddr*) &cli, &len)) < 0) {
-		perror("accept()\n");
-		exit(EXIT_FAILURE);
-	}
-	echo_server(connfd);
+
+	struct pollfd fds[FD_TAB_SIZE];
+    fds[0].fd= sfd;
+    fds[0].events= POLLIN;
+    fds[0].revents= 0;
+
+    for(int i=1; i<FD_TAB_SIZE; i++){
+        fds[i].fd= -1;
+        fds[i].events= 0;
+        fds[i].revents= 0;
+    }
+
+    while(1){
+        int nbfds = poll(fds, FD_TAB_SIZE, -1);
+        for (int i=0; i<FD_TAB_SIZE; i++){
+            if(i==0 && (fds[i].revents == POLLIN)){
+                for(int j=1; j<FD_TAB_SIZE; j++){
+                    if(fds[j].fd == -1){
+                        accept_client(j,fds,sfd,nbfds);
+                        break;
+                    }
+                }
+            }
+            if ( i != 0 && (fds[i].revents == POLLIN)){
+                printf("Nombre de fd connecté : %i\n",nbfds);
+                echo_server(fds, i);
+            }
+        }
+    }
 	close(sfd);
 	return EXIT_SUCCESS;
 }
