@@ -10,7 +10,7 @@
 
 #include "common.h"
 
-void echo_server(struct pollfd fds[], int i) {
+void echo_server(struct pollfd fds[], int i, int sfd) {
 	char buff[MSG_LEN];
 	// Cleaning memory
 	memset(buff, 0, MSG_LEN);
@@ -21,7 +21,14 @@ void echo_server(struct pollfd fds[], int i) {
         fds[i].revents = 0;
         fds[i].events = 0;
     }
+    else if(strcmp(buff,"/quit\n") == 0){
+        close(fds[i].fd);
+        fds[i].fd = -1;
+        fds[i].revents = 0;
+        fds[i].events = 0;
+        }
 
+    
     else{
         printf("Received: %s", buff);
         // Sending message (ECHO)
@@ -71,9 +78,7 @@ int handle_bind(char* port) {
 }
 
 int main(int argc, char* argv[]) {
-
 	int sfd;
-
 	sfd = handle_bind(argv[1]);
 	if ((listen(sfd, SOMAXCONN)) != 0) {
 		perror("listen()\n");
@@ -103,7 +108,7 @@ int main(int argc, char* argv[]) {
                 }
             }
             if ( i != 0 && (fds[i].revents == POLLIN)){
-                echo_server(fds, i);
+                echo_server(fds, i, sfd);
             }
         }
     }
