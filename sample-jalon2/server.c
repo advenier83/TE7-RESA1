@@ -26,7 +26,7 @@ void echo_server(int sockfd) {
 			break;
 		}
 		printf("pld_len: %i / nick_sender: %s / type: %s / infos: %s\n", msgstruct.pld_len, msgstruct.nick_sender, msg_type_str[msgstruct.type], msgstruct.infos);
-		printf("Received: %s", buff);
+		printf("Received: %s\n", buff);
 		// Sending structure (ECHO)
 		if (send(sockfd, &msgstruct, sizeof(msgstruct), 0) <= 0) {
 			break;

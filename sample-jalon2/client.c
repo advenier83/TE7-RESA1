@@ -10,7 +10,7 @@
 #include "common.h"
 #include "msg_struct.h"
 
-void echo_client(int sockfd) {
+int echo_client(int sockfd, char* pseudo) {
 	struct message msgstruct;
 	char buff[MSG_LEN];
 	int n;
@@ -23,10 +23,39 @@ void echo_client(int sockfd) {
 		n = 0;
 		while ((buff[n++] = getchar()) != '\n') {} // trailing '\n' will be sent
 		// Filling structure
-		msgstruct.pld_len = strlen(buff);
-		strncpy(msgstruct.nick_sender, "Toto", 4);
-		msgstruct.type = ECHO_SEND;
-		strncpy(msgstruct.infos, "\0", 1);
+		msgstruct.pld_len = strlen(buff) - sizeof(char);
+		strncpy(msgstruct.nick_sender, pseudo, sizeof(pseudo)-1);
+		msgstruct.type = NICKNAME_NEW;
+		switch (msgstruct.type) {
+			case NICKNAME_NEW:
+				snprintf(msgstruct.infos, sizeof(msgstruct.infos), "Nouveau pseudo %s est vide avant l'attribution d'un pseudo, sinon il contient le pseudo actuel.", pseudo);
+				break;
+
+			case NICKNAME_LIST:
+				strncpy(msgstruct.infos, "Chaîne vide.", sizeof(msgstruct.infos)-1);
+				break;
+
+			case NICKNAME_INFOS:
+				strncpy(msgstruct.infos, "Pseudo de l'utilisateur recherché.", sizeof(msgstruct.infos)-1);
+				break;
+
+			case ECHO_SEND:
+				strncpy(msgstruct.infos, "Chaîne vide.", sizeof(msgstruct.infos)-1);
+				break;
+
+			case UNICAST_SEND:
+				strncpy(msgstruct.infos, "Pseudo du destinataire.", sizeof(msgstruct.infos)-1);
+				break;
+
+			case BROADCAST_SEND:
+				strncpy(msgstruct.infos, "Chaîne vide.", sizeof(msgstruct.infos)-1);
+				break;
+
+			default:
+				printf("Il y a un problème");
+				return EXIT_SUCCESS;
+
+		}
 		// Sending structure
 		if (send(sockfd, &msgstruct, sizeof(msgstruct), 0) <= 0) {
 			break;
@@ -48,8 +77,9 @@ void echo_client(int sockfd) {
 			break;
 		}
 		printf("pld_len: %i / nick_sender: %s / type: %s / infos: %s\n", msgstruct.pld_len, msgstruct.nick_sender, msg_type_str[msgstruct.type], msgstruct.infos);
-		printf("Received: %s", buff);
+		printf("Received: %s\n", buff);
 	}
+	return EXIT_SUCCESS;
 }
 
 int handle_connect() {
@@ -80,10 +110,14 @@ int handle_connect() {
 	return sfd;
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+	if (argc != 2){
+		printf("veuillez rentrer votre pseudo en argument!\n");
+		return EXIT_FAILURE;
+	}
 	int sfd;
 	sfd = handle_connect();
-	echo_client(sfd);
+	echo_client(sfd, argv[1]);
 	close(sfd);
 	return EXIT_SUCCESS;
 }
