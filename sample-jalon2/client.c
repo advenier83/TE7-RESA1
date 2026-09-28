@@ -6,9 +6,24 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #include "common.h"
 #include "msg_struct.h"
+
+int valider_pseudo(const char *pseudo) {
+    if (pseudo[0] == '\0') {
+        return 0; // Pseudo vide
+    }
+
+    for (int i = 0; pseudo[i] != '\0'; i++) {
+        if (!isalnum((unsigned char)pseudo[i])) {
+            return 0; // Contient un espace ou un caractère spécial
+        }
+    }
+
+    return 1;
+}
 
 int echo_client(int sockfd, char* pseudo) {
 	struct message msgstruct;
@@ -24,7 +39,7 @@ int echo_client(int sockfd, char* pseudo) {
 		while ((buff[n++] = getchar()) != '\n') {} // trailing '\n' will be sent
 		// Filling structure
 		msgstruct.pld_len = strlen(buff) - sizeof(char);
-		strncpy(msgstruct.nick_sender, pseudo, sizeof(pseudo)-1);
+		strncpy(msgstruct.nick_sender, pseudo, MAX_PSEUDO);
 		msgstruct.type = NICKNAME_NEW;
 		switch (msgstruct.type) {
 			case NICKNAME_NEW:
@@ -53,7 +68,7 @@ int echo_client(int sockfd, char* pseudo) {
 
 			default:
 				printf("Il y a un problème");
-				return EXIT_SUCCESS;
+				return EXIT_FAILURE;
 
 		}
 		// Sending structure
@@ -114,6 +129,10 @@ int main(int argc, char* argv[]) {
 	if (argc != 2){
 		printf("veuillez rentrer votre pseudo en argument!\n");
 		return EXIT_FAILURE;
+	}
+    if (valider_pseudo(argv[1])==0) {
+		printf("Veuillez rentrer seulement des lettres et des chiffres pour votre pseudo\n");
+		return 0;
 	}
 	int sfd;
 	sfd = handle_connect();
